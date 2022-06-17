@@ -107,13 +107,9 @@ void EqualizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 
     auto chainSettings = getChainSettings(apvts);
 
-    auto peakCoeffic = juce::dsp::IIR::Coefficients<float >::makePeakFilter(sampleRate,
-                                                                            chainSettings.peakFreq,
-                                                                            chainSettings.peakQuality,
-                                                                            juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    updatePeakFilter(chainSettings);
 
-    *leftChain.get < ChainPositions::Peak>().coefficients = *peakCoeffic;
-    *rightChain.get < ChainPositions::Peak>().coefficients = *peakCoeffic;
+
 
     auto cutCoefficient = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(  chainSettings.lowCutFreq,
                                                                                                         sampleRate, 
@@ -262,10 +258,7 @@ void EqualizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     auto chainSettings = getChainSettings(apvts);
 
-    auto peakCoeffic = juce::dsp::IIR::Coefficients<float >::makePeakFilter(getSampleRate(),
-        chainSettings.peakFreq,
-        chainSettings.peakQuality,
-        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    updatePeakFilter(chainSettings);
 
     auto cutCoefficient = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
         getSampleRate(),
@@ -362,10 +355,6 @@ void EqualizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     }
 
-    *leftChain.get < ChainPositions::Peak>().coefficients = *peakCoeffic;
-    *rightChain.get < ChainPositions::Peak>().coefficients = *peakCoeffic;
-
-
     juce::dsp::AudioBlock<float> block(buffer);
 
     auto leftBlock = block.getSingleChannelBlock(0);
@@ -450,6 +439,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout EqualizerAudioProcessor::Equ
 
     return layout;
 
+}
+
+void EqualizerAudioProcessor::updatePeakFilter(const ChainSettings& chainSettings)
+{
+    auto peakCoeffic = juce::dsp::IIR::Coefficients<float >::makePeakFilter(getSampleRate(),
+        chainSettings.peakFreq,
+        chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+
+    updateCoefficinets(leftChain.get <ChainPositions::Peak>().coefficients, peakCoeffic);
+    updateCoefficinets(rightChain.get <ChainPositions::Peak>().coefficients, peakCoeffic);
+
+}
+
+void EqualizerAudioProcessor::updateCoefficinets(Coefficinets& old, const Coefficinets& replacements)
+{
+    *old = *replacements;
 }
 
 ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
